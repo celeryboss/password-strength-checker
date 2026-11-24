@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Password Strength Checker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="lemon-background" aria-hidden="true">
+        <video id="lemon-video" autoplay muted playsinline>
+            <source src="{{ url_for('static', filename='lemon.mp4') }}" type="video/mp4">
+        </video>
+    </div>
+
+    <main class="container">
+        <header>
+            <h1>Password strength</h1>
+        </header>
+
+        <form id="password-form">
+            <label for="password">Type the desired password below</label>
+            <div class="password-field">
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Enter a password"
+                    autocomplete="off"
+                >
+            </div>
+
+            <button type="button" id="visibility-toggle" class="check-button" aria-label="Show password" aria-pressed="false">Show password</button>
+        </form>
+
+        <div class="result" aria-live="polite">
+            <div class="rating" id="rating" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <span></span><span></span><span></span>
+            </div>
+            <h2 id="strength">Waiting...</h2>
+            <p id="score"></p>
+            <p id="crack-time"></p>
+        </div>
+
+        <a class="credit" href="https://github.com/celeryboss" target="_blank" rel="noopener noreferrer">
+            <img class="credit-avatar" src="https://github.com/celeryboss.png" alt="celeryboss GitHub profile">
+            <span>Made by celeryboss</span>
+        </a>
+    </main>
+
+    <script>
+        const passwordInput = document.getElementById("password");
+        const visibilityToggle = document.getElementById("visibility-toggle");
+        const lemonVideo = document.getElementById("lemon-video");
+
+        lemonVideo.addEventListener("ended", () => {
+            lemonVideo.classList.add("fade-out");
+
+            setTimeout(() => {
+                lemonVideo.currentTime = 0;
+                lemonVideo.classList.remove("fade-out");
+                lemonVideo.classList.add("fade-in");
+                lemonVideo.play();
+
+                setTimeout(() => lemonVideo.classList.remove("fade-in"), 1200);
+            }, 1200);
+        });
+
+        visibilityToggle.addEventListener("click", () => {
+            const isVisible = passwordInput.type === "text";
+            passwordInput.type = isVisible ? "password" : "text";
+            visibilityToggle.textContent = isVisible ? "Show password" : "Hide password";
+            visibilityToggle.setAttribute("aria-pressed", String(!isVisible));
+            visibilityToggle.setAttribute("aria-label", isVisible ? "Show password" : "Hide password");
+        });
+
+        async function updateStrength() {
+            const password = passwordInput.value;
+
+            if (!password) {
+                document.getElementById("strength").textContent = "Enter a password";
+                document.getElementById("score").textContent = "";
+                document.getElementById("crack-time").textContent = "";
+                document.querySelectorAll("#rating span").forEach((bar) => bar.classList.remove("active"));
+                return;
+            }
+
+            const response = await fetch("/check", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+
+            const result = await response.json();
+
+            document.getElementById("strength").textContent = result.strength;
+            document.getElementById("score").textContent = "Score: " + result.score + "/6";
+            document.getElementById("crack-time").textContent = "Estimated crack time: " + result.crack_time;
+
+            const bars = document.querySelectorAll("#rating span");
+            bars.forEach((bar, index) => {
+                bar.classList.toggle("active", index < result.score);
+                bar.dataset.rating = result.strength.toLowerCase();
+            });
+        }
+
+        passwordInput.addEventListener("input", updateStrength);
+
+        document.getElementById("password-form").addEventListener("submit", (event) => {
+            event.preventDefault();
+        });
+    </script>
+
+</body>
+</html>
